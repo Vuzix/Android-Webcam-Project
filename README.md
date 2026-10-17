@@ -21,6 +21,16 @@ This is a **complete professional solution** with:
 - 💻 **Tauri Desktop Client** (Windows/Mac/Linux)
 - 🔌 **USB Connection Support** (low latency, more stable)
 - 📡 **WiFi Connection Support** (wireless freedom)
+
+
+<!-- Play Store badge / announcement -->
+
+[![Get it on Google Play](https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.soubhagyajit.awa)
+
+**Milestone achieved — AWA is now available on Google Play!**
+
+Get the Android app on the Play Store: https://play.google.com/store/apps/details?id=com.soubhagyajit.awa
+
 ## Components
 
 ### AWC — Desktop Client
@@ -164,7 +174,7 @@ See the [LICENSE](LICENSE) file for full details.
 ## Acknowledgments
 
 - Virtual camera powered by [Softcam](https://github.com/tshino/softcam) © tshino (MIT License)
-- Built with Kotlin, Electron.
+- Built with Kotlin, Tauri.
 - Inspired by DroidCam and similar tools.
 - Made with ❤️ for the open-source community.
 
@@ -172,7 +182,7 @@ See the [LICENSE](LICENSE) file for full details.
 
 - [ ] Audio streaming support
 - [ ] Recording functionality
-- [ ] Mobile app on app stores
+- [x] ~~Mobile app on app stores~~ (Now available on Google Play: https://play.google.com/store/apps/details?id=com.soubhagyajit.awa)
 
 ## Support
 
