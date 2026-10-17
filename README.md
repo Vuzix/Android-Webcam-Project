@@ -3,9 +3,10 @@ Turn your Android phone into a high-quality webcam using a fully local, serverle
 
 _**Open-source (GPL-3.0)**_
 
+>## 🎉 Milestone Achieved
+>AWA is now available on Google Play!
+
 ## Latest Releases
-
-
 <table>
   <tr>
     <td width="50%" align="center" valign="top">
@@ -64,23 +65,20 @@ This is a **complete professional solution** with:
 - 🔌 **USB Connection Support** (low latency, more stable)
 - 📡 **WiFi Connection Support** (wireless freedom)
 
-
-**Milestone achieved — AWA is now available on Google Play!**
-
-Get the Android app on the Play Store: https://play.google.com/store/apps/details?id=com.soubhagyajit.awa
-
 ## Components
 
-### AWC — Desktop Client
+### AWC [Desktop Client]
 Tauri-based app that connects to your phone and outputs virtual webcam.
 
-### AWA — Android App
+### AWA [Android App]
 Kotlin-based mobile app that acts as the streaming server.
 ## Features
 
 ### Mobile App
 - HD/FHD/4K resolution support (480p, 720p, 1080p, 4K)
 - Front/back camera switching
+- Manual/Auto Focus
+- Zoom/Lens switch
 - USB and WiFi connection modes
 - Real-time connection status
 - Low battery usage
