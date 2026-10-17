@@ -1,4 +1,4 @@
-#  Android Webcam System
+#  Android Webcam System [![Get it on Google Play](https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.soubhagyajit.awa)
 Turn your Android phone into a high-quality webcam using a fully local, serverless architecture.
 
 Open-source (GPL-3.0)
@@ -22,10 +22,6 @@ This is a **complete professional solution** with:
 - 🔌 **USB Connection Support** (low latency, more stable)
 - 📡 **WiFi Connection Support** (wireless freedom)
 
-
-<!-- Play Store badge / announcement -->
-
-[![Get it on Google Play](https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.soubhagyajit.awa)
 
 **Milestone achieved — AWA is now available on Google Play!**
 
@@ -199,7 +195,7 @@ Having issues? Found a bug?
 ---
 > [!NOTE]
 >*** *Virtual Webcam Device is back in v1.0.6. Enjoy AWP - Android Webcam Project!*
->*Virtual webcam device was not included in client version v1.0.5 as I was investing an issue. I released it in the next version with Virtual camera included. If you need the Virtual camera, please install client version v1.0.6*
+>*Virtual webcam device was not included in client version v1.0.5 as I was investing an issue. I released it in the next version with Virtual camera included. If you need the Virtual camera, plea[...]
 
 **Happy streaming! Made with ❤️ and ☕ by developers, for developers.**
 
