@@ -1,7 +1,49 @@
-#  Android Webcam System [![Get it on Google Play](https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.soubhagyajit.awa)
+# Android Webcam System
 Turn your Android phone into a high-quality webcam using a fully local, serverless architecture.
 
-Open-source (GPL-3.0)
+_**Open-source (GPL-3.0)**_
+
+## Latest Releases
+
+
+<table>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <h3>Android Webcam App (AWA)</h3>
+      <p>Android · Mobile</p>
+      <a href="https://github.com/soubhagyajit/Mobile-Webcam/releases">
+        <img
+          src="https://img.shields.io/github/v/release/soubhagyajit/Mobile-Webcam?label=Latest%20Release&style=for-the-badge"
+          alt="AWA Latest Release"
+        >
+      </a>
+      <br><br>
+      <a href="https://play.google.com/store/apps/details?id=com.soubhagyajit.awa">
+        <img
+          src="https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png"
+          alt="Get it on Google Play"
+          width="140"
+        >
+      </a>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <h3>Android Webcam Client<br>(AWC)</h3>
+      <p>Desktop · Windows</p>
+      <a href="https://github.com/soubhagyajit/Mobile-Webcam/releases">
+        <img
+          src="https://img.shields.io/github/v/release/soubhagyajit/Mobile-Webcam?label=Latest%20Release&style=for-the-badge"
+          alt="AWC Latest Release"
+        >
+      </a>
+      <br><br>
+      <a href="https://github.com/soubhagyajit/Mobile-Webcam/releases">
+        Download Client
+      </a>
+    </td>
+  </tr>
+</table>
+
+
 > [!NOTE]
 > ## Sponsorship Needed
 >
