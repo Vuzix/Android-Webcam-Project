@@ -216,6 +216,9 @@ See the [LICENSE](LICENSE) file for full details.
 
 ## Roadmap
 
+- [ ] Able to stream while the phone screen is off (only dim option available now)
+- [ ] Run as Background service
+- [ ] More layout optimization
 - [ ] Audio streaming support
 - [ ] Recording functionality
 - [x] ~~Mobile app on app stores~~ (Now available on Google Play: https://play.google.com/store/apps/details?id=com.soubhagyajit.awa)
