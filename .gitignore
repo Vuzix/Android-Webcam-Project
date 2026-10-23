@@ -17,6 +17,8 @@ APP
 .vs
 .vscode
 .gitignore
+.idea/
+AWA/.idea/
 avcodec-62.dll
 avdevice-62.dll
 avfilter-11.dll

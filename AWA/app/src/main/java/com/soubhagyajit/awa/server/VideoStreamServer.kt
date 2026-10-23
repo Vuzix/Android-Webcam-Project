@@ -14,7 +14,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -33,7 +34,9 @@ object VideoStreamServer {
         val zoom_min: Float,
         val stream_protocol: CameraViewModel.StreamMode,
         val server_port: Int? = null,
-        val rtsp_port: Int? = null
+        val rtsp_port: Int? = null,
+        val fps_options: List<Int> = listOf(30),
+        val max_fps: Int = 30
     )
 
     @Serializable
@@ -48,6 +51,7 @@ object VideoStreamServer {
         val stream_quality: Int,
         val flash: Boolean = false,
         val has_flash_unit: Boolean? = null,
+        val fps: Int = 30,
     )
 
     @Serializable
@@ -62,6 +66,7 @@ object VideoStreamServer {
         val switchCamera: Boolean? = null,
         val camera: String,
         val stream_quality: Int? = null,
+        val fps: Int? = null,
     )
 
     var featuresProvider: (() -> FeaturesResponse)? = null
@@ -71,8 +76,11 @@ object VideoStreamServer {
     var onSettingsUpdated: ((SettingsUpdateRequest) -> String?)? = null
 
     private var server: EmbeddedServer<*, *>? = null
-    @Volatile
-    var latestFrame: ByteArray? = null
+    // StateFlow so MJPEG writers wake on each new frame instead of polling on a timer
+    private val frameFlow = MutableStateFlow<ByteArray?>(null)
+    var latestFrame: ByteArray?
+        get() = frameFlow.value
+        set(value) { frameFlow.value = value }
 
     var onUserConnected: (() -> Unit)? = null
     var onUserDisconnected: (() -> Unit)? = null
@@ -185,6 +193,7 @@ object VideoStreamServer {
                         focus_distance = params["focus_distance"]?.toFloatOrNull(),
                         switchCamera = if (params.contains("switch_camera")) true else null,
                         stream_quality = 80,
+                        fps = params["fps"]?.toIntOrNull(),
                     )
 
                     val error = onSettingsUpdated?.invoke(update)
@@ -211,22 +220,20 @@ object VideoStreamServer {
     private suspend fun streamMjpeg(outputStream: OutputStream) {
         val boundary = "\r\n--frame\r\n"
 
-        while (true) {
-            val frame = latestFrame
-            if (frame != null) {
-                try {
-                    withContext(Dispatchers.IO) {
-                        outputStream.write(boundary.toByteArray())
-                        outputStream.write("Content-Type: image/jpeg\r\n".toByteArray())
-                        outputStream.write("Content-Length: ${frame.size}\r\n\r\n".toByteArray())
-                        outputStream.write(frame)
-                        outputStream.flush()
-                    }
-                } catch (_: Exception) {
-                    break
+        // Frames are pushed as fast as the camera produces them; StateFlow conflates,
+        // so a slow client simply skips to the newest frame.
+        try {
+            frameFlow.filterNotNull().collect { frame ->
+                withContext(Dispatchers.IO) {
+                    outputStream.write(boundary.toByteArray())
+                    outputStream.write("Content-Type: image/jpeg\r\n".toByteArray())
+                    outputStream.write("Content-Length: ${frame.size}\r\n\r\n".toByteArray())
+                    outputStream.write(frame)
+                    outputStream.flush()
                 }
             }
-            delay(33)
+        } catch (_: Exception) {
+            // Client disconnected
         }
     }
 

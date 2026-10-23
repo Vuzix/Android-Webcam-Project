@@ -512,6 +512,10 @@ fun SettingsPanel(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        FpsDropdown(camView = camView, settings = settings)
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         if (streamMode == CameraViewModel.StreamMode.MJPEG) {
                             Text("Quality: ${sliderPosition.toInt()}", color = Color.White)
                             Spacer(modifier = Modifier.height(16.dp))
@@ -621,6 +625,43 @@ fun ResolutionDropdown(camView: CameraViewModel, settings: CameraViewModel.Camer
                     onClick = {
                         camView.setResolution(res)
                         Log.d("AWA", "Resolution set to ${res.label}:${res.size}")
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FpsDropdown(camView: CameraViewModel, settings: CameraViewModel.CameraSettings) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = "${settings.fps} fps",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Frame Rate") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            settings.supportedFps.forEach { fps ->
+                DropdownMenuItem(
+                    text = { Text("$fps fps") },
+                    onClick = {
+                        camView.setFps(fps)
+                        Log.d("AWA", "Frame rate set to $fps")
                         expanded = false
                     }
                 )

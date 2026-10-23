@@ -5,15 +5,18 @@ import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Range
 import android.util.Size
 import android.view.MotionEvent
 import android.view.View
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.AspectRatio
@@ -44,6 +47,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.roundToInt
 
 class CameraViewModel : ViewModel() {
 
@@ -74,7 +78,12 @@ class CameraViewModel : ViewModel() {
         val zoom: Float = 1.0f,
         val zoomMin: Float = 1.0f,
         val zoomMax: Float = 1.0f,
+        val fps: Int = 30,
+        val supportedFps: List<Int> = listOf(30),
+        val maxFps: Int = 30,
     )
+
+    private val fpsChoices = listOf(15, 24, 30, 60)
 
     @Volatile
     var currentFrame: ByteArray? = null
@@ -154,7 +163,9 @@ class CameraViewModel : ViewModel() {
                 zoom_max = maxZoom,
                 zoom_min = minZoom,
                 has_zoom = maxZoom > minZoom,
-                rtsp_port = if (currentMode == StreamMode.H264_RTSP) rtspPort else null
+                rtsp_port = if (currentMode == StreamMode.H264_RTSP) rtspPort else null,
+                fps_options = s.supportedFps,
+                max_fps = s.maxFps
             )
         }
 
@@ -171,6 +182,7 @@ class CameraViewModel : ViewModel() {
                 focus_distance = s.focusDistance*1000,
                 stream_quality = s.jpegQuality,
                 has_flash_unit = s.hasFlashUnit,
+                fps = s.fps,
             )
         }
 
@@ -180,6 +192,10 @@ class CameraViewModel : ViewModel() {
 
             if (update.resolution_str != null && isRtspActive) {
                 "Cannot change resolution while RTSP stream is active. Stop the stream first."
+            } else if (update.fps != null && update.fps != _settings.value.fps && isRtspActive) {
+                "Cannot change fps while RTSP stream is active. Stop the stream first."
+            } else if (update.fps != null && update.fps !in _settings.value.supportedFps) {
+                "Unsupported fps ${update.fps}. Supported: ${_settings.value.supportedFps}"
             } else {
                 viewModelScope.launch(Dispatchers.Main) {
                     update.switchCamera?.let { if (it) switchCamera() }
@@ -230,12 +246,67 @@ class CameraViewModel : ViewModel() {
                     update.stream_quality?.let{value ->
                         _settings.value = _settings.value.copy(jpegQuality = value)
                     }
+                    update.fps?.let { setFps(it) }
                 }
                 null
             }
         }
 
+        refreshFpsCapability()
         VideoStreamServer.start(8080)
+    }
+
+    // --- Frame rate ---
+
+    private fun cameraCharacteristicsFor(lensFacing: Int): CameraCharacteristics? {
+        val manager = appContext?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return null
+        // CameraX and Camera2 share the same LENS_FACING constant values
+        return runCatching {
+            manager.cameraIdList
+                .map { manager.getCameraCharacteristics(it) }
+                .firstOrNull { it.get(CameraCharacteristics.LENS_FACING) == lensFacing }
+        }.getOrNull()
+    }
+
+    private fun queryMaxFps(chars: CameraCharacteristics, size: Size): Int {
+        val aeMax = chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)
+            ?.maxOfOrNull { it.upper } ?: 30
+        // The sensor may only reach its top AE rate at smaller sizes (e.g. no 4K60)
+        val minFrameDurationNs = runCatching {
+            chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+                ?.getOutputMinFrameDuration(ImageFormat.YUV_420_888, size)
+        }.getOrNull() ?: 0L
+        val sizeMax = if (minFrameDurationNs > 0) (1_000_000_000.0 / minFrameDurationNs).roundToInt() else aeMax
+        return minOf(aeMax, sizeMax)
+    }
+
+    /** Recomputes which frame rates the current camera + resolution can do and clamps the selection. */
+    private fun refreshFpsCapability() {
+        val s = _settings.value
+        val chars = cameraCharacteristicsFor(s.lensFacing) ?: return
+        val maxFps = queryMaxFps(chars, s.resolution.size)
+        val supported = fpsChoices.filter { it <= maxFps }.ifEmpty { listOf(maxFps) }
+        val fps = supported.lastOrNull { it <= s.fps } ?: supported.first()
+        if (fps != s.fps) Log.d("AWA", "fps ${s.fps} unsupported at ${s.resolution.label}, using $fps")
+        _settings.value = s.copy(fps = fps, supportedFps = supported, maxFps = maxFps)
+    }
+
+    /** Picks an AE target range ending at [fps], preferring a fixed range (e.g. [60,60]). */
+    private fun aeRangeFor(lensFacing: Int, fps: Int): Range<Int>? {
+        val ranges = cameraCharacteristicsFor(lensFacing)
+            ?.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES) ?: return null
+        return ranges.filter { it.upper == fps }.maxByOrNull { it.lower }
+    }
+
+    fun setFps(fps: Int) {
+        if (fps !in _settings.value.supportedFps || fps == _settings.value.fps) return
+        _settings.value = _settings.value.copy(fps = fps)
+        when (_streamMode.value) {
+            StreamMode.MJPEG -> {
+                if (cameraProvider != null) bindCamera()
+            }
+            StreamMode.H264_RTSP -> restartRtspCamera("fps changed to $fps")
+        }
     }
 
     // --- Unified start/stop ---
@@ -371,19 +442,21 @@ class CameraViewModel : ViewModel() {
 
     private fun startRtspCamera() {
         val ctx = appContext ?: return
+        refreshFpsCapability()
         val s = _settings.value
 
         val camera = RtspServerCamera2(ctx, buildConnectChecker(), rtspPort)
         rtspCamera = camera
 
         val videoOk = try {
-            camera.prepareVideo(s.resolution.size.width, s.resolution.size.height, 30, rtspBitrate, 0)
+            // RootEncoder picks the camera AE fps range matching the requested fps
+            camera.prepareVideo(s.resolution.size.width, s.resolution.size.height, s.fps, rtspBitrate, 0)
         } catch (e: Exception) {
             Log.e("AWA", "RTSP prepareVideo threw", e)
             false
         }
         val audioOk = camera.prepareAudio()
-        Log.d("AWA", "RTSP prepareVideo=$videoOk prepareAudio=$audioOk")
+        Log.d("AWA", "RTSP prepareVideo=$videoOk prepareAudio=$audioOk fps=${s.fps}")
 
         if (videoOk) {
             val flashAvailable = camera.cameraCharacteristics
@@ -438,24 +511,38 @@ class CameraViewModel : ViewModel() {
 
     // --- MJPEG (CameraX) pipeline ---
 
+    @OptIn(ExperimentalCamera2Interop::class)
     private fun bindCamera() {
         val ctx = appContext ?: return
         val owner = lifecycleOwner ?: return
         val preview = previewView ?: return
+        refreshFpsCapability()
         val s = _settings.value
+        val aeRange = aeRangeFor(s.lensFacing, s.fps)
+        Log.d("AWA", "MJPEG target fps=${s.fps} aeRange=$aeRange")
 
         val providerFuture = ProcessCameraProvider.getInstance(ctx)
         providerFuture.addListener({
             val provider = providerFuture.get()
             cameraProvider = provider
 
-            val previewUseCase = Preview.Builder().build().also {
+            val previewBuilder = Preview.Builder()
+            if (aeRange != null) {
+                Camera2Interop.Extender(previewBuilder)
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, aeRange)
+            }
+            val previewUseCase = previewBuilder.build().also {
                 it.setSurfaceProvider(preview.surfaceProvider)
             }
 
             val executor = cameraExecutor ?: Executors.newSingleThreadExecutor().also { cameraExecutor = it }
 
-            val imageAnalysis = ImageAnalysis.Builder()
+            val analysisBuilder = ImageAnalysis.Builder()
+            if (aeRange != null) {
+                Camera2Interop.Extender(analysisBuilder)
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, aeRange)
+            }
+            val imageAnalysis = analysisBuilder
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setResolutionSelector(
                     ResolutionSelector.Builder()
@@ -566,6 +653,15 @@ class CameraViewModel : ViewModel() {
 
         val uvHeight = height / 2
         val uvWidth = width / 2
+
+        // Fast path: most devices already store V/U interleaved (VUVU...) in the V plane,
+        // so it can be bulk-copied. The per-pixel loop below is too slow for 60fps at 1080p.
+        if (uvPixelStride == 2 && uvRowStride == width && vBuffer.remaining() >= uvSize - 1) {
+            vBuffer.position(0)
+            vBuffer.get(nv21, outputOffset, uvSize - 1)
+            nv21[ySize + uvSize - 1] = uBuffer.get(uvSize - 2)
+            return nv21
+        }
 
         for (row in 0 until uvHeight) {
             for (col in 0 until uvWidth) {
@@ -746,6 +842,7 @@ class CameraViewModel : ViewModel() {
 
     fun setResolution(res: StreamResolution) {
         _settings.value = _settings.value.copy(resolution = res)
+        refreshFpsCapability()
         when (_streamMode.value) {
             StreamMode.MJPEG -> {
                 if (cameraProvider != null) bindCamera()

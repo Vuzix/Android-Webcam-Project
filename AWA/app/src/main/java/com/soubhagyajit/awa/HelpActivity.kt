@@ -92,7 +92,9 @@ fun HelpContent(modifier: Modifier = Modifier) {
     "manual_focus": true,
     "exposure_lower": -20,
     "exposure_upper": 20,
-    "stream_protocol": "MJPEG"
+    "stream_protocol": "MJPEG",
+    "fps_options": [15, 24, 30, 60],
+    "max_fps": 60
 }
                 """.trimIndent()
             )
@@ -110,6 +112,7 @@ fun HelpContent(modifier: Modifier = Modifier) {
     "exposure_index": 0,
     "zoom": 1.0,
     "stream_quality": 80,
+    "fps": 30,
     "flip": false,
     "resolution_str": "1280x720",
     "camera": "back"
@@ -130,6 +133,7 @@ fun HelpContent(modifier: Modifier = Modifier) {
     "exposure_index": 0,
     "zoom": 1.0,
     "stream_quality": 80,
+    "fps": 30,
     "flip": false,
     "resolution_str": "1280x720",
     "camera": "back"
@@ -150,6 +154,7 @@ fun HelpContent(modifier: Modifier = Modifier) {
     "exposure_index": 0,
     "zoom": 1.0,
     "stream_quality": 80,
+    "fps": 30,
     "flip": false,
     "resolution_str": "1280x720",
     "camera": "back"
